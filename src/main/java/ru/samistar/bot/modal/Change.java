@@ -1,10 +1,22 @@
 package ru.samistar.bot.modal;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToOne;
+
+@Entity
 public class Change {
+    @OneToOne
     private Currency first;
+    @OneToOne
     private Currency second;
     private Double sell;
     private Double buy;
+
+    @Id
+    @GeneratedValue
+    private Integer id;
 
     public Change() {
     }
@@ -56,5 +68,13 @@ public class Change {
 
     public void setBuy(Double buy) {
         this.buy = buy;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 }

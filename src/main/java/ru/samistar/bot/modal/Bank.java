@@ -1,10 +1,22 @@
 package ru.samistar.bot.modal;
 
+import javax.persistence.*;
+
+@Entity
 public class Bank {
     private String name;
 
+    @Id
+    @GeneratedValue
+    private Integer id;
+    @OneToOne(cascade = CascadeType.ALL)
     private Change dollar;
+    @OneToOne(cascade = CascadeType.ALL)
     private Change euro;
+
+    public Bank(String name) {
+        this.name = name;
+    }
 
     public Bank(String name, Double dollarSell, Double dollarBuy, Double euroSell, Double euroBuy) {
         Currency rub = new Currency("Рубль");
@@ -25,6 +37,7 @@ public class Bank {
                 ", euro=" + euro +
                 '}';
     }
+
 
     public String getName() {
         return name;
@@ -48,5 +61,14 @@ public class Bank {
 
     public void setEuro(Change euro) {
         this.euro = euro;
+    }
+
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 }
