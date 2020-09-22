@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -21,6 +22,8 @@ import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
+//дофига библиотек
+
 
 @Component // штука засовывающая класс в хранилище бинов
 public class Bot extends TelegramLongPollingBot {
@@ -28,6 +31,8 @@ public class Bot extends TelegramLongPollingBot {
     @Autowired  // найти в хранилище бинов(классов работников) переменную того же типа что и данное поле
     private FillBankScheduler fillBankScheduler; // данное поле(ничего само по себе не делает)
 
+
+    //подключаем репозитории к этому классу
     @Autowired
     private BankRepository bankRepository;
 
@@ -43,12 +48,12 @@ public class Bot extends TelegramLongPollingBot {
     @Autowired
     private UserRepository userRepository;
 
-
+//???
     @PostConstruct
     private void init() {
-        System.getProperties().put("proxySet", "true");
-        System.getProperties().put("socksProxyHost", "127.0.0.1");
-        System.getProperties().put("socksProxyPort", "9150");
+//        System.getProperties().put("proxySet", "true");
+//        System.getProperties().put("socksProxyHost", "127.0.0.1");
+//        System.getProperties().put("socksProxyPort", "9150");
 
 
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi();
@@ -60,38 +65,89 @@ public class Bot extends TelegramLongPollingBot {
     }
 
 
-
     /**
      * Метод для приема сообщений.
      *
      * @param update Содержит сообщение от пользователя.
      */
+
     @Override
-    public void onUpdateReceived(Update update) {
-        if (update.getMessage() == null) {
-            // если месседж пустой то это нажатие кнопки под сообщением
-            String s = update.getCallbackQuery().getData();
-            System.out.println("s =" + s);
-            s = s.replace("addToFavorites", "");
-            int idishnik = Integer.parseInt(s);
-            Bank bank = bankRepository.findById(idishnik).get();
-            System.out.println("Bank =" + bank);
-            int userId = update.getCallbackQuery().getFrom().getId();
-            User user = userRepository.findByChatId(userId);
-            Favorites favorites = new Favorites(user, bank);
-            favoritesRepository.save(favorites);
-        }else{
-            String message = update.getMessage().getText();
-            if (message.equals("Курс Валюты")) {
-                message = bankRepository.findById(3).get().toString();
-                sendMsg(update.getMessage().getChatId().toString(), message, null);
-            } else if (message.equals("Поиск")) {
-                message = "Для поиска банка пришлите часть его имени";
-                sendMsg(update.getMessage().getChatId().toString(), message, null);
+    public void onUpdateReceived(Update update) { //избранное
+
+        if (update.getMessage() == null) {    // если месседж пустой то это нажатие кнопки под сообщением
+
+
+            User user2 = new User(update.getCallbackQuery().getFrom().getId());
+            if(userRepository.findByChatId(update.getCallbackQuery().getFrom().getId()) == null){
+                userRepository.save(user2);
+            }
+
+
+            String s = update.getCallbackQuery().getData(); // строка которую пишет юзер в телеграм
+            System.out.println("s =" + s); // вывод на экран компа этой строки
+            s = s.replace("addToFavorites", ""); // удаляет из строки addToFavorites
+            int idishnik = Integer.parseInt(s); // достаёт айди банка из строчки s
+            Bank bank = bankRepository.findById(idishnik).get(); // лезет в бд и достаёт оттуда банк с нужным айди
+            System.out.println("Bank =" + bank); // выводит на экран этот банк
+            int userId = update.getCallbackQuery().getFrom().getId(); // достает айди юзера
+            User user = userRepository.findByChatId(userId); // лезет в бд и достаёт оттуда юзера с нужным айди
+            Favorites favorites = new Favorites(user, bank); // создает объект c нужным юзером и банком
+
+            String textButtonCheck = update.getCallbackQuery().getMessage().getReplyMarkup().getKeyboard().get(0).get(0).getText();
+            if(textButtonCheck.startsWith("Удалить из избранного") == true);{
+                favoritesRepository.deleteByUserChatIdAndBankId(favorites);
+
+            }
+            else{
+                favoritesRepository.save(favorites); // сохраняет его в бд
+            }
+        } else {
+            String message = update.getMessage().getText(); // берем текст сообщения
+            if (message.equals("Курс Валюты")) { // если юзер написал "курс валюты"
+                message = bankRepository.findById(3).get().toString(); // берет из репозитория курс валюты всех банков и преобразует его в строчку
+                sendMsg(update.getMessage().getChatId().toString(), message, null); // вызывает метод сендМесседж выводя все банки в телеграм
+            } else if (message.equals("Поиск")) { // если юзер написал "поиск"
+                message = "Для поиска банка пришлите часть его имени"; // создаем строчку с  текстом "Для поиска банка пришлите часть его имени"
+                sendMsg(update.getMessage().getChatId().toString(), message, null); // вызывает метод сендМесседж выводя эту строчку на экран в телеграм
             } else { // элс который ищет банк по подстроке(части строки) в имени
-                List<Bank> banks = bankRepository.findByNameContainsIgnoreCase(message);
-                if (banks.isEmpty()) {
-                    sendMsg(update.getMessage().getChatId().toString(), "Не найдено", null);
+                List<Bank> banks = bankRepository.findByNameContainsIgnoreCase(message); //берёт из репозитория все банки с именем содержащим набранный юзером в телеграме текст(не обращая внимания на размер букв)
+                if (banks.isEmpty()) { // если таких банков нет то
+                    sendMsg(update.getMessage().getChatId().toString(), "Не найдено", null); // вызываем метод сендмесседж выводя в телеграмм "не найдено"
+                }
+
+
+                for (int i = 0; i < banks.size(); i++) {
+                    //Создаем обьект разметки клавиатуры:
+                    InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+
+                    //Создаем обьект InlineKeyboardButton, у которой есть 2 параметка: Текст (Что будет написано на самой кнопке) и CallBackData (Что будет отсылатся серверу при нажатии на кнопку).
+
+                    InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();// создаём кнопу "добавить в избранное"
+                    InlineKeyboardButton inlineKeyboardButton2 = new InlineKeyboardButton();// создаём кнопку "удалить из избранного"
+
+
+
+
+                    // Добавляем его в список, таким образом создавая ряд.
+                    List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
+                    List<List<InlineKeyboardButton>> keyboardButtonsRows = new ArrayList<>();
+
+
+                    if(favoritesRepository.findByUserChatIdAndBankId(update.getMessage().getFrom().getId(), banks.get(i).getId()) == null){
+                        inlineKeyboardButton.setCallbackData(banks.get(i).getId().toString());
+                        inlineKeyboardButton.setText("Добавить в избранное");
+                        keyboardButtonsRow1.add(inlineKeyboardButton);
+                        keyboardButtonsRows.add(keyboardButtonsRow1);
+                    }
+                    else{
+                        inlineKeyboardButton2.setCallbackData(banks.get(i).getId().toString());
+                        inlineKeyboardButton2.setText("Удалить из избранного");
+                        keyboardButtonsRow1.add(inlineKeyboardButton2);
+                        keyboardButtonsRows.add(keyboardButtonsRow1);
+                    }
+                    inlineKeyboardMarkup.setKeyboard(keyboardButtonsRows);
+
+                    sendMsg(update.getMessage().getChatId().toString(), banks.get(i).toString(), inlineKeyboardMarkup);
                 }
             }
         }
@@ -103,20 +159,21 @@ public class Bot extends TelegramLongPollingBot {
      * @param chatId id чата
      * @param s      Строка, которую необходимот отправить в качестве сообщения.
      */
-    public synchronized void sendMsg(String chatId, String s, InlineKeyboardMarkup inlineKeyboardMarkup) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.enableMarkdown(true);
-        sendMessage.setChatId(chatId);
-        sendMessage.setText(s);
-        setButtons(sendMessage);
-        if(inlineKeyboardMarkup != null){
-            sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+    public synchronized void sendMsg(String chatId, String s, InlineKeyboardMarkup inlineKeyboardMarkup) { // метод отправляющий сообщения юзеру в телеграмм
+        SendMessage sendMessage = new SendMessage(); // создает объект сендмесседж
+        sendMessage.enableMarkdown(true); //
+        sendMessage.setChatId(chatId); // добавляет ему айди чата
+        sendMessage.setText(s); // добавляет ему текст содержащийся в S
+        setButtons(sendMessage); // добавляем ему кнопки
+
+        if (inlineKeyboardMarkup != null) { //
+            sendMessage.setReplyMarkup(inlineKeyboardMarkup); //
 
         }
-        try {
-            execute(sendMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
+        try { //
+            execute(sendMessage); //выполняет этод метод?
+        } catch (TelegramApiException e) {//
+            e.printStackTrace();//
         }
     }
 
@@ -179,6 +236,13 @@ public class Bot extends TelegramLongPollingBot {
         keyboard.add(keyboardFourthRow);
         // и устанваливаем этот список нашей клавиатуре
         replyKeyboardMarkup.setKeyboard(keyboard);
+
+
+        
+
     }
+
+
+
 }
 

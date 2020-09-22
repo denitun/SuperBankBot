@@ -6,6 +6,7 @@ import javax.persistence.*;
 public class Bank {
     private String name;
 
+
     @Id
     @GeneratedValue
     private Integer id;
@@ -16,6 +17,9 @@ public class Bank {
 
     public Bank(String name) {
         this.name = name;
+    }
+
+    public Bank() {
     }
 
     public Bank(String name, Double dollarSell, Double dollarBuy, Double euroSell, Double euroBuy) {
